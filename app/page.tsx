@@ -1,18 +1,40 @@
-import { createClient } from '@/supabase/server'
-import { redirect } from 'next/navigation'
+// INDEX: app/page.tsx
+'use client'
 
-export default async function Home() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/supabase/browser'
 
-  if (!user) redirect('/login')
+export default function LandingPage() {
+  const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
+  const [status, setStatus] = useState('checking session...')
+
+  useEffect(() => {
+    const run = async () => {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) {
+        setStatus('Fehler bei der Session-Prüfung, leite zu /login …')
+        router.replace('/login')
+        return
+      }
+
+      if (data.session) {
+        setStatus('Session gefunden, leite zum Dashboard …')
+        router.replace('/dashboard')
+        return
+      }
+
+      setStatus('Keine Session, leite zu /login …')
+      router.replace('/login')
+    }
+
+    run()
+  }, [router, supabase])
 
   return (
-    <main className="p-8">
-      <h1 className="text-3xl font-bold">Kids Money Lab</h1>
-      <p className="mt-2 text-slate-600">
-        Eingeloggt als {user.email}
-      </p>
+    <main className="p-10">
+      <p className="text-slate-600">{status}</p>
     </main>
   )
 }
