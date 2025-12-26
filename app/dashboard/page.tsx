@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/Progress'
 import { PotCard } from '@/components/money/PotCard'
 import { ChildAvatar } from '@/components/kids/ChildAvatar'
 import { ChildSwitcher } from '@/components/kids/ChildSwitcher'
+import { PayoutWizard } from '@/components/payout/PayoutWizard'
 import { formatCHF } from '@/components/money/format'
 import { computeMonthStats, computeSixMonthTrend, endOfPreviousMonth, startOfMonth, startOfPreviousMonth } from '@/lib/stats'
 
@@ -71,6 +72,9 @@ export default function DashboardPage() {
   const [loadingChildData, setLoadingChildData] = useState(false)
   const [interestLoading, setInterestLoading] = useState(false)
   const [interestMessage, setInterestMessage] = useState<string | null>(null)
+  const [payoutOpen, setPayoutOpen] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -95,6 +99,7 @@ export default function DashboardPage() {
       }
 
       setEmail(user.email ?? null)
+      setUserId(user.id)
 
       const { data, error: childrenError } = await supabase
         .from('children')
@@ -127,7 +132,7 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [router, supabase])
+  }, [router, supabase, refreshTick])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -323,6 +328,19 @@ export default function DashboardPage() {
   const investThreshold = settings?.invest_threshold_cents ?? 5000
   const investReady = (balance?.invest_cents ?? 0) >= investThreshold
   const investProgress = investThreshold > 0 ? Math.min((balance?.invest_cents ?? 0) / investThreshold, 1) : 0
+  const interestDue = (() => {
+    if (!activeChild) return false
+    const base = balance?.last_interest_on ?? activeChild.created_at
+    if (!base) return false
+    const today = new Date()
+    const last = new Date(base)
+    const diff = Math.floor(
+      (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
+        Date.UTC(last.getFullYear(), last.getMonth(), last.getDate())) /
+        (1000 * 60 * 60 * 24)
+    )
+    return diff > 0
+  })()
 
   const formatDelta = (cents: number) => {
     const sign = cents > 0 ? '+' : cents < 0 ? '−' : ''
@@ -415,15 +433,16 @@ export default function DashboardPage() {
                 </div>
 
                 <Card className="space-y-2">
-                  <Link href={`/children/${activeChildId}/payout`}>
-                    <Button>Auszahlung hinzufügen</Button>
-                  </Link>
+                  <Button onClick={() => setPayoutOpen(true)}>Auszahlung hinzufügen</Button>
                   <Link href={`/children/${activeChildId}/extra`}>
                     <Button variant="secondary">Extra Zahlung</Button>
                   </Link>
                   <Button variant="secondary" onClick={handleInterest} disabled={interestLoading}>
                     {interestLoading ? 'Berechne Zinsen…' : 'Zinsen gutschreiben'}
                   </Button>
+                  {interestDue ? (
+                    <div className="text-xs text-emerald-700">✨ Zinsen verfügbar – jetzt gutschreiben</div>
+                  ) : null}
                   <Link href={`/children/${activeChildId}/transfer`}>
                     <Button variant="secondary" disabled={!investReady} className={!investReady ? 'opacity-60' : ''}>
                       Invest transferieren
@@ -439,6 +458,14 @@ export default function DashboardPage() {
                     {interestMessage}
                   </div>
                 ) : null}
+
+                <Card className="space-y-2">
+                  <p className="text-sm font-semibold text-slate-900">Geschenk</p>
+                  <p className="text-sm text-slate-600">Jahresrückblick als PDF herunterladen.</p>
+                  <Link href={`/children/${activeChildId}/year-review?year=${new Date().getFullYear()}`}>
+                    <Button variant="secondary">🎁 Jahresrückblick herunterladen</Button>
+                  </Link>
+                </Card>
 
                 <Accordion
                   title="Monatsvergleich"
@@ -525,6 +552,15 @@ export default function DashboardPage() {
           </Link>
         </div>
       </Drawer>
+
+      <PayoutWizard
+        open={payoutOpen}
+        onClose={() => setPayoutOpen(false)}
+        child={activeChild}
+        onSuccess={() => {
+          setRefreshTick((t) => t + 1)
+        }}
+      />
     </main>
   )
 }
