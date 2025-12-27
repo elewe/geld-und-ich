@@ -1,24 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Kids Money Lab — Next.js 16.1 + Supabase (App Router)
 
 ## Getting Started
 
-First, run the development server:
+Install deps (Node 20+):
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Env vars required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- Migrations live in `supabase/migrations/`. Run the latest SQL in Supabase SQL editor or via CLI (psql):
+
+  ```
+  psql "$SUPABASE_DB_URL" -f supabase/migrations/202412271240_replace_balances_view.sql
+  ```
+
+- This migration replaces any balances view with a real table and guarantees `spend_cents/save_cents/invest_cents` columns.
+
+## Development
+
+- Auth: Supabase magic link → `/auth/callback` exchanges the code.
+- Data: Dashboards read `balances` table directly; transactions use plain `pot` text.
+
+## Deploy
+- Ensure env vars are set on the host (e.g. Vercel).
+- Run `npm run build` for a production check.
 
 ## Learn More
 

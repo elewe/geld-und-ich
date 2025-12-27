@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/browser'
 import { Drawer } from '@/components/ui/Drawer'
 import { StepDots } from '@/components/ui/StepDots'
 import { Button } from '@/components/ui/Button'
@@ -28,7 +28,7 @@ const STEP_TOTAL = 3
 const STEP_ALLOCATION = 2
 
 export function PayoutWizard({ open, onClose, child, onSuccess }: Props) {
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const [step, setStep] = useState(1)
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
   const [totalCents, setTotalCents] = useState(0)
@@ -132,16 +132,86 @@ export function PayoutWizard({ open, onClose, child, onSuccess }: Props) {
       return
     }
 
-    const { error: rpcError } = await supabase.rpc('apply_payout', {
-      p_child_id: child.id,
-      p_occurred_on: date,
-      p_spend_cents: spendCents,
-      p_save_cents: saveCents,
-      p_invest_cents: investCents,
-    })
+    const { data: currentBalance } = await supabase
+      .from('balances')
+      .select('spend_cents, save_cents, invest_cents')
+      .eq('child_id', child.id)
+      .single()
 
-    if (rpcError) {
-      setError(rpcError.message)
+    const baseTx = {
+      child_id: child.id,
+      user_id: user.id,
+      type: 'weekly_allowance',
+      pot: 'spend',
+      amount_cents: totalCents,
+      occurred_on: date,
+      meta: { source: 'payout_wizard' },
+    }
+
+    const allocations = [
+      spendCents > 0
+        ? {
+            child_id: child.id,
+            user_id: user.id,
+            type: 'allocation',
+            pot: 'spend',
+            amount_cents: spendCents,
+            occurred_on: date,
+            meta: { source: 'weekly_allowance' },
+          }
+        : null,
+      saveCents > 0
+        ? {
+            child_id: child.id,
+            user_id: user.id,
+            type: 'allocation',
+            pot: 'save',
+            amount_cents: saveCents,
+            occurred_on: date,
+            meta: { source: 'weekly_allowance' },
+          }
+        : null,
+      investCents > 0
+        ? {
+            child_id: child.id,
+            user_id: user.id,
+            type: 'allocation',
+            pot: 'invest',
+            amount_cents: investCents,
+            occurred_on: date,
+            meta: { source: 'weekly_allowance' },
+          }
+        : null,
+    ].filter(Boolean) as any[]
+
+    const txPayload = [baseTx, ...allocations]
+    const { error: txError } = await supabase.from('transactions').insert(txPayload)
+    if (txError) {
+      setError(txError.message)
+      setSaving(false)
+      return
+    }
+
+    const nextBalance = {
+      spend_cents: (currentBalance?.spend_cents ?? 0) + spendCents,
+      save_cents: (currentBalance?.save_cents ?? 0) + saveCents,
+      invest_cents: (currentBalance?.invest_cents ?? 0) + investCents,
+    }
+
+    const { error: balanceError } = await supabase
+      .from('balances')
+      .upsert(
+        {
+          child_id: child.id,
+          user_id: user.id,
+          ...nextBalance,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'child_id' }
+      )
+
+    if (balanceError) {
+      setError(balanceError.message)
       setSaving(false)
       return
     }

@@ -8,3 +8,4 @@ Dieser Ordner enthält alle wiederverwendbaren React-Komponenten für Kids Money
 - `layout/` - Layout-Komponenten (Header, Footer, Sidebar, etc.)
 - `features/` - Feature-spezifische Komponenten
 
+

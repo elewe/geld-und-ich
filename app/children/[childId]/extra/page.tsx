@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/browser'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
@@ -13,7 +13,7 @@ function toCents(value: number) {
 }
 
 export default function ExtraPaymentPage() {
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const params = useParams<{ childId: string }>()
   const router = useRouter()
   const childId = params?.childId

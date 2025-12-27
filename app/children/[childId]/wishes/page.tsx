@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/browser'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatCHF } from '@/components/money/format'
@@ -20,7 +20,7 @@ export default function WishesPage() {
   const params = useParams<{ childId: string }>()
   const childId = params?.childId
   const router = useRouter()
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
 
   const [wishes, setWishes] = useState<Wish[]>([])
   const [title, setTitle] = useState('')

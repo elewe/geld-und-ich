@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/browser'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -83,7 +83,7 @@ function formatTxType(type: string) {
 }
 
 export default function ChildDetailPage() {
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const params = useParams<{ childId: string }>()
   const router = useRouter()
   const childId = params?.childId

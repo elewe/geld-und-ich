@@ -3,14 +3,14 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/browser'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { ChildAvatar } from '@/components/kids/ChildAvatar'
 import { getAccentClasses } from '@/components/kids/avatar'
 
 export default function CreateChild() {
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const router = useRouter()
 
   const [name, setName] = useState('')

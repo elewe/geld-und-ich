@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/browser'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatCHF } from '@/components/money/format'
@@ -25,7 +25,7 @@ export default function YearReviewPage() {
   const params = useParams<{ childId: string }>()
   const search = useSearchParams()
   const router = useRouter()
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const childId = params?.childId
   const yearParam = search?.get('year')
   const year = Number(yearParam) || new Date().getFullYear()

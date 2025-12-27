@@ -8,3 +8,4 @@ Dieser Ordner enthält Utility-Funktionen, Hilfsfunktionen und Konfigurationen.
 - `constants/` - Konstanten und Konfigurationen
 - `types/` - TypeScript-Typen und Interfaces
 
+
