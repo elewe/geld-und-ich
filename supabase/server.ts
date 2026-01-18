@@ -1,83 +1,58 @@
 // INDEX: supabase/server.ts
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { getSupabaseEnv } from './env'
 
 /**
- * Erstellt einen Supabase-Client für Server Components
- * Verwendet cookies() aus next/headers für Cookie-Handling
+ * Server Component/Route Loader client.
+ * Cookie writes are swallowed here because Next.js only allows them in Server Actions/Route Handlers.
+ * Middleware and route handlers handle actual cookie persistence.
  */
-export async function createServerSupabaseReadClient() {
+export async function createServerSupabaseClient() {
   const cookieStore = await cookies()
+  const { url, anonKey } = getSupabaseEnv()
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('Supabase env vars fehlen: NEXT_PUBLIC_SUPABASE_URL und NEXT_PUBLIC_SUPABASE_ANON_KEY')
-  }
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options)
-            })
-          } catch (error) {
-            // Ignore errors in Server Components
-          }
-        },
+  return createServerClient(url, anonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
       },
-    }
-  )
+      set(_name: string, _value: string, _options?: CookieOptions) {
+        // No-op: Server Components cannot set cookies; handled in middleware/route handlers.
+      },
+      remove(_name: string, _options?: CookieOptions) {
+        // No-op: Server Components cannot set cookies; handled in middleware/route handlers.
+      },
+    },
+  })
 }
 
 /**
- * Erstellt einen Supabase-Client für Route Handlers
- * Verwendet Request/Response für Cookie-Handling
- * 
- * @param request - Das Request-Objekt aus dem Route Handler
- * @returns Ein Objekt mit dem Supabase-Client und einer Response-Funktion zum Setzen von Cookies
+ * Route Handler client that can safely write cookies.
  */
-export async function createRouteHandlerSupabaseClient(request: NextRequest | Request) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('Supabase env vars fehlen: NEXT_PUBLIC_SUPABASE_URL und NEXT_PUBLIC_SUPABASE_ANON_KEY')
-  }
-
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+export function createRouteHandlerSupabaseClient(request: NextRequest) {
+  const { url, anonKey } = getSupabaseEnv()
+  const response = new NextResponse(null, {
+    headers: request.headers,
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          const cookieHeader = request.headers.get('cookie')
-          if (!cookieHeader) return []
-          
-          return cookieHeader.split(';').map((cookie) => {
-            const [name, ...rest] = cookie.trim().split('=')
-            return { name, value: rest.join('=') }
-          })
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
-        },
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      get(name: string) {
+        return request.cookies.get(name)?.value
       },
-    }
-  )
+      set(name: string, value: string, options?: CookieOptions) {
+        response.cookies.set({ name, value, ...options })
+      },
+      remove(name: string, options?: CookieOptions) {
+        response.cookies.set({ name, value: '', ...options, expires: new Date(0) })
+      },
+    },
+  })
 
   return { supabase, response }
 }
 
+// Backwards compatibility until all imports are updated
+export const createServerSupabaseReadClient = createServerSupabaseClient
