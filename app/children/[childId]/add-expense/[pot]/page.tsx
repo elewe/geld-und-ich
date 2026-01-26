@@ -130,7 +130,7 @@ export default function AddExpensePage() {
       }) as Balance
 
       const amountCents = Math.round(amount * 100)
-      const currentValue = balanceRow[balanceKeyMap[pot]] ?? 0
+      const currentValue = Number(balanceRow[balanceKeyMap[pot]] ?? 0)
       const nextValue = Math.max(currentValue - amountCents, 0)
 
       const { error: txError } = await supabase.from('transactions').insert({
