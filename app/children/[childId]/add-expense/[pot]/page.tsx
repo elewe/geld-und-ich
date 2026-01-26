@@ -207,7 +207,7 @@ export default function AddExpensePage() {
 
   if (!child || !balance || !pot) return null
 
-  const potBalance = (balance[balanceKeyMap[pot]] ?? 0) / 100
+  const potBalance = Number(balance[balanceKeyMap[pot]] ?? 0) / 100
 
   return (
     <AddExpense
