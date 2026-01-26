@@ -154,7 +154,7 @@ export default function PotDetailPage() {
   if (!child || !balance || !pot) return null
 
   const childName = child.name?.trim() || 'Dein'
-  const balanceCents = balance[balanceKeyMap[pot]] ?? 0
+  const balanceCents = Number(balance[balanceKeyMap[pot]] ?? 0)
 
   return (
     <PotDetail
