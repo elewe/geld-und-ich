@@ -24,4 +24,18 @@ export function formatDate(date: Date | string): string {
   }).format(dateObj);
 }
 
+/**
+ * Returns the canonical site URL for the current environment.
+ */
+export function getBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.replace(/\/+$/, "");
+  }
+
+  return "http://localhost:3000";
+}
+
+
+
 

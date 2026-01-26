@@ -9,3 +9,6 @@ Dieser Ordner enthält Utility-Funktionen, Hilfsfunktionen und Konfigurationen.
 - `types/` - TypeScript-Typen und Interfaces
 
 
+
+
+

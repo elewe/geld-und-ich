@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatCHF } from '@/components/money/format'
@@ -148,9 +148,11 @@ export default function YearReviewPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="max-w-xl mx-auto p-6 md:p-10">
-          <p className="text-slate-500">Lade Jahresrückblick…</p>
+      <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+        <div className="mx-auto w-full max-w-2xl px-6 pb-6 pt-24 space-y-6">
+          <div className="h-[48px] w-[220px] rounded-[16px] bg-white/80 shadow-[0px_4px_10px_-6px_rgba(0,0,0,0.12)] animate-pulse" />
+          <div className="h-[18px] w-[260px] rounded-full bg-white/80 animate-pulse" />
+          <div className="h-[300px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
         </div>
       </main>
     )
@@ -158,8 +160,8 @@ export default function YearReviewPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="max-w-xl mx-auto p-6 md:p-10 space-y-3">
+      <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+        <div className="mx-auto w-full max-w-2xl p-6 md:p-10 space-y-3">
           <Card>
             <p className="text-red-600 text-sm">❌ {error}</p>
           </Card>
@@ -169,8 +171,8 @@ export default function YearReviewPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="max-w-xl mx-auto p-6 md:p-10 space-y-4">
+    <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+      <div className="mx-auto w-full max-w-2xl p-6 md:p-10 space-y-4">
         <h1 className="text-2xl font-bold">🎁 Jahresrückblick {year}</h1>
         <p className="text-slate-600 text-sm">Eine druckbare A4-Seite als Geschenk.</p>
         <Card className="space-y-2">

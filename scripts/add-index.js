@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 // Adds a header index comment to all code files so agents can orient quickly.
 // Usage:
@@ -106,3 +107,4 @@ main().catch((err) => {
   console.error(err)
   process.exit(1)
 })
+/* eslint-disable @typescript-eslint/no-require-imports */

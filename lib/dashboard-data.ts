@@ -1,5 +1,5 @@
 // INDEX: lib/dashboard-data.ts
-import { createServerSupabaseReadClient } from '@/supabase/server'
+import { createServerSupabaseClient } from '@/supabase/server'
 import { monthKey, startOfMonth } from '@/lib/stats'
 import { PotVariant } from '@/lib/ui-tokens'
 
@@ -8,7 +8,7 @@ type TransactionRow = {
   amount_cents: number | null
   occurred_on: string | null
   type?: string | null
-  meta?: Record<string, any> | null
+  meta?: Record<string, unknown> | null
 }
 
 export type ChildRow = {
@@ -21,9 +21,10 @@ export type ChildRow = {
   avatar_emoji?: string | null
   avatar_image_url?: string | null
   accent_color?: string | null
+  donate_enabled?: boolean | null
 }
 
-export type PotTotals = { spend: number; save: number; invest: number }
+export type PotTotals = { spend: number; save: number; invest: number; donate: number }
 
 export type MonthlyPotSummary = PotTotals & { total: number }
 
@@ -37,10 +38,12 @@ export type MonthlyBarRow = {
 }
 
 export async function getChildrenForUser(userId: string) {
-  const supabase = await createServerSupabaseReadClient()
+  const supabase = await createServerSupabaseClient()
   const { data, error } = await supabase
     .from('children')
-    .select('id, name, age, weekly_amount, created_at, avatar_mode, avatar_emoji, avatar_image_url, accent_color')
+    .select(
+      'id, name, age, weekly_amount, created_at, avatar_mode, avatar_emoji, avatar_image_url, accent_color, donate_enabled'
+    )
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
@@ -51,29 +54,36 @@ export async function getChildrenForUser(userId: string) {
   return { data: (data ?? []) as ChildRow[], error: null }
 }
 
-export async function getPotBalances(childId: string, userId: string) {
-  const supabase = await createServerSupabaseReadClient()
-  const { data, error } = await supabase
+export async function getChildBalances(childId: string, userId: string) {
+  const supabase = await createServerSupabaseClient()
+  const { data: tableData, error: tableError } = await supabase
     .from('balances')
-    .select('spend_cents, save_cents, invest_cents')
+    .select('spend_cents, save_cents, invest_cents, donate_cents')
     .eq('child_id', childId)
     .eq('user_id', userId)
     .single()
 
-  if (error && error.code !== 'PGRST116') {
-    return { data: null as PotTotals | null, error: error.message }
+  if (tableData) {
+    return { data: mapBalanceRow(tableData), error: null }
   }
 
-  const payload = data ?? { spend_cents: 0, save_cents: 0, invest_cents: 0 }
-  return {
-    data: {
-      spend: payload.spend_cents ?? 0,
-      save: payload.save_cents ?? 0,
-      invest: payload.invest_cents ?? 0,
-    },
-    error: null,
+  const { data: viewData, error: viewError } = await supabase
+    .from('balances_view')
+    .select('spend_cents, save_cents, invest_cents, donate_cents')
+    .eq('child_id', childId)
+    .maybeSingle()
+
+  if (viewData) {
+    return { data: mapBalanceRow(viewData), error: null }
   }
+
+  const errorMessage =
+    tableError?.code !== 'PGRST116' ? tableError?.message : viewError?.message
+
+  return { data: { spend: 0, save: 0, invest: 0, donate: 0 }, error: errorMessage ?? null }
 }
+
+export const getPotBalances = getChildBalances
 
 export async function getMonthlyPotSums(childId: string, monthStart: Date, monthEnd: Date) {
   const from = toISODate(monthStart)
@@ -81,7 +91,7 @@ export async function getMonthlyPotSums(childId: string, monthStart: Date, month
   const { data, error } = await fetchPotTransactions(childId, { from, to })
   if (error) return { data: null as MonthlyPotSummary | null, error }
   const totals = accumulateByPot(data, { signed: true, clampZero: true })
-  const total = totals.spend + totals.save + totals.invest
+  const total = totals.spend + totals.save + totals.invest + totals.donate
   return { data: { ...totals, total }, error: null }
 }
 
@@ -119,7 +129,7 @@ export async function getLastNMonthsPotSums(childId: string, n = 6) {
     const amount = computeSignedAmount(tx)
     const safeAmount = Math.max(0, amount)
     const pot = normalizePot(tx.pot)
-    if (!pot) continue
+    if (!pot || pot === 'donate') continue
     buckets[key][pot] += safeAmount
     buckets[key].total += safeAmount
   }
@@ -132,7 +142,7 @@ async function fetchPotTransactions(
   childId: string,
   range?: { from?: string; to?: string }
 ): Promise<{ data: TransactionRow[]; error: string | null }> {
-  const supabase = await createServerSupabaseReadClient()
+  const supabase = await createServerSupabaseClient()
   let query = supabase
     .from('transactions')
     .select('pot, amount_cents, occurred_on, type, meta')
@@ -152,7 +162,7 @@ function accumulateByPot(
   rows: TransactionRow[],
   { signed, clampZero }: { signed: boolean; clampZero?: boolean }
 ) {
-  const totals: PotTotals = { spend: 0, save: 0, invest: 0 }
+  const totals: PotTotals = { spend: 0, save: 0, invest: 0, donate: 0 }
   for (const tx of rows) {
     const pot = normalizePot(tx.pot)
     if (!pot) continue
@@ -171,9 +181,8 @@ function computeSignedAmount(tx: TransactionRow) {
   return amount
 }
 
-function normalizePot(pot: TransactionRow['pot']): PotVariant | null {
-  if (pot === 'spend' || pot === 'save' || pot === 'invest') return pot
-  if (pot === 'donate') return null
+function normalizePot(pot: TransactionRow['pot']): PotVariant | 'donate' | null {
+  if (pot === 'spend' || pot === 'save' || pot === 'invest' || pot === 'donate') return pot
   return null
 }
 
@@ -186,4 +195,18 @@ function toISODate(date: Date) {
   const month = `${date.getMonth() + 1}`.padStart(2, '0')
   const day = `${date.getDate()}`.padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function mapBalanceRow(payload: {
+  spend_cents?: number | null
+  save_cents?: number | null
+  invest_cents?: number | null
+  donate_cents?: number | null
+}) {
+  return {
+    spend: payload.spend_cents ?? 0,
+    save: payload.save_cents ?? 0,
+    invest: payload.invest_cents ?? 0,
+    donate: payload.donate_cents ?? 0,
+  }
 }

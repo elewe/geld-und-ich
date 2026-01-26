@@ -96,7 +96,13 @@ function CenterLabel({ total }: { total: number }) {
   )
 }
 
-function TooltipContent({ active, payload }: any) {
+function TooltipContent({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: { payload?: Slice }[]
+}) {
   if (!active || !payload?.length) return null
   const entry = payload[0]?.payload as Slice | undefined
   if (!entry) return null

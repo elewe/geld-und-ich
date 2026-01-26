@@ -4,15 +4,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { Progress } from '@/components/ui/Progress'
-import { PotCard } from '@/components/money/PotCard'
+import { createBrowserSupabaseClient } from '@/supabase/client'
 import { formatCHF } from '@/components/money/format'
-import { Pot, getPotMeta } from '@/components/money/pots'
-import { ChildAvatar } from '@/components/kids/ChildAvatar'
 
 type Child = {
   id: string
@@ -20,11 +13,9 @@ type Child = {
   age: number | null
   weekly_amount: number | null
   user_id: string
-  created_at: string | null
   avatar_mode: 'emoji' | 'image'
   avatar_emoji: string | null
-  avatar_image_url: string | null
-  accent_color: string | null
+  donate_enabled?: boolean | null
 }
 
 type Balance = {
@@ -33,53 +24,13 @@ type Balance = {
   spend_cents: number
   save_cents: number
   invest_cents: number
-  last_interest_on: string | null
-  updated_at: string | null
+  donate_cents: number
 }
 
-type Settings = {
-  child_id: string
-  user_id: string
-  payout_weekday: number
-  interest_apr_bp: number
-  invest_threshold_cents: number
-  updated_at: string | null
-}
-
-type Transaction = {
-  id: string
-  type: string
-  pot: string
-  amount_cents: number
-  occurred_on: string
-  meta: Record<string, any> | null
-}
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('de-CH')
-}
-
-function daysSince(dateString: string | null | undefined) {
-  if (!dateString) return 0
-  const today = new Date()
-  const base = new Date(dateString)
-  if (Number.isNaN(base.getTime())) return 0
-  return Math.floor(
-    (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
-      Date.UTC(base.getFullYear(), base.getMonth(), base.getDate())) /
-      (1000 * 60 * 60 * 24)
-  )
-}
-
-function formatTxType(type: string) {
-  const map: Record<string, string> = {
-    allocation: 'Zuweisung',
-    weekly_allowance: 'Wöchentliche Auszahlung',
-    interest: 'Zinsen',
-    transfer: 'Transfer',
-    payout: 'Auszahlung',
-  }
-  return map[type] ?? type
+type DonutSegment = {
+  key: string
+  value: number
+  color: string
 }
 
 export default function ChildDetailPage() {
@@ -90,13 +41,8 @@ export default function ChildDetailPage() {
 
   const [child, setChild] = useState<Child | null>(null)
   const [balance, setBalance] = useState<Balance | null>(null)
-  const [settings, setSettings] = useState<Settings | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [wishes, setWishes] = useState<{ id: string; title: string; target_cents: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [interestLoading, setInterestLoading] = useState(false)
-  const [interestMessage, setInterestMessage] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     if (!childId) {
@@ -106,7 +52,6 @@ export default function ChildDetailPage() {
     }
 
     setError(null)
-    setInterestMessage(null)
     setLoading(true)
 
     const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -124,9 +69,7 @@ export default function ChildDetailPage() {
 
     const { data: childData, error: childError } = await supabase
       .from('children')
-      .select(
-        'id, name, age, weekly_amount, user_id, created_at, avatar_mode, avatar_emoji, avatar_image_url, accent_color'
-      )
+      .select('id, name, age, weekly_amount, user_id, avatar_mode, avatar_emoji, donate_enabled')
       .eq('id', childId)
       .single()
 
@@ -146,7 +89,7 @@ export default function ChildDetailPage() {
 
     const { data: balanceData, error: balanceError } = await supabase
       .from('balances')
-      .select('child_id, user_id, spend_cents, save_cents, invest_cents, last_interest_on, updated_at')
+      .select('child_id, user_id, spend_cents, save_cents, invest_cents, donate_cents')
       .eq('child_id', childId)
       .single()
 
@@ -161,160 +104,31 @@ export default function ChildDetailPage() {
         spend_cents: 0,
         save_cents: 0,
         invest_cents: 0,
-        last_interest_on: null,
-        updated_at: null,
+        donate_cents: 0,
       }
     )
 
-    const { data: settingsData, error: settingsError } = await supabase
-      .from('settings')
-      .select('child_id, user_id, payout_weekday, interest_apr_bp, invest_threshold_cents, updated_at')
-      .eq('child_id', childId)
-      .single()
-
-    if (settingsError && settingsError.code !== 'PGRST116') {
-      setError(settingsError.message)
-    }
-
-    setSettings(
-      (settingsData as Settings) ?? {
-        child_id: childId,
-        user_id: user.id,
-        payout_weekday: 1,
-        interest_apr_bp: 200,
-        invest_threshold_cents: 5000,
-        updated_at: null,
-      }
-    )
-
-    const { data: txData } = await supabase
-      .from('transactions')
-      .select('id, type, pot, amount_cents, occurred_on, meta')
-      .eq('child_id', childId)
-      .order('occurred_on', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(5)
-
-    setTransactions((txData ?? []) as Transaction[])
-
-    const { data: wishData } = await supabase
-      .from('wishes')
-      .select('id, title, target_cents')
-      .eq('child_id', childId)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-
-    setWishes((wishData ?? []) as { id: string; title: string; target_cents: number }[])
     setLoading(false)
   }, [childId, router, supabase])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
   }, [fetchData])
 
-  async function handleInterest() {
-    if (!childId) return
-    setInterestMessage(null)
-    setError(null)
-    setInterestLoading(true)
-
-    const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError) {
-      setError(userError.message)
-      setInterestLoading(false)
-      return
-    }
-
-    const user = userData.user
-    if (!user) {
-      router.replace('/login')
-      setInterestLoading(false)
-      return
-    }
-
-    const currentBalance = balance
-    const currentSettings = settings
-    const currentChild = child
-
-    if (!currentBalance || !currentSettings || !currentChild) {
-      setError('Daten fehlen für die Zinsberechnung.')
-      setInterestLoading(false)
-      return
-    }
-
-    if (currentBalance.user_id !== user.id) {
-      setError('Kein Zugriff.')
-      setInterestLoading(false)
-      return
-    }
-
-    const baseDate = currentBalance.last_interest_on ?? currentChild.created_at
-    if (!baseDate) {
-      setError('Kein Basisdatum für Zinsen gefunden.')
-      setInterestLoading(false)
-      return
-    }
-
-    const diffDays = daysSince(baseDate)
-    if (diffDays <= 0) {
-      setInterestMessage('Keine Zinsen fällig (Datum unverändert).')
-      setInterestLoading(false)
-      return
-    }
-
-    const aprBp = currentSettings.interest_apr_bp ?? 200
-    const ratePerDay = aprBp / 10000 / 365
-    const interestCents = Math.floor((currentBalance.save_cents || 0) * ratePerDay * diffDays)
-
-    if (interestCents <= 0) {
-      setInterestMessage('Kein Zuwachs berechnet (Betrag zu klein).')
-      setInterestLoading(false)
-      return
-    }
-
-    const todayIso = new Date().toISOString().slice(0, 10)
-
-    const { error: txError } = await supabase.from('transactions').insert({
-      child_id: childId,
-      user_id: user.id,
-      type: 'interest',
-      pot: 'save',
-      amount_cents: interestCents,
-      occurred_on: todayIso,
-      meta: { days: diffDays, apr_bp: aprBp },
-    })
-
-    if (txError) {
-      setError(txError.message)
-      setInterestLoading(false)
-      return
-    }
-
-    const { error: balanceError } = await supabase
-      .from('balances')
-      .update({
-        save_cents: (currentBalance.save_cents || 0) + interestCents,
-        last_interest_on: todayIso,
-      })
-      .eq('child_id', childId)
-      .eq('user_id', user.id)
-
-    if (balanceError) {
-      setError(balanceError.message)
-      setInterestLoading(false)
-      return
-    }
-
-    setInterestMessage(`Zinsen gutgeschrieben: ${formatCHF(interestCents)}`)
-    setInterestLoading(false)
-    fetchData()
-  }
-
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="max-w-xl mx-auto p-6 md:p-10 space-y-4">
-          <p className="text-slate-500">Lade Kind…</p>
+      <main className="min-h-screen bg-gradient-to-b from-[#fff9f0] via-[#f5f0ff] to-[#f0f9ff]">
+        <div className="mx-auto w-full max-w-5xl px-6 pb-6 pt-24 space-y-6">
+          <div className="h-16 rounded-[24px] bg-white/80 shadow-[0px_1px_3px_rgba(0,0,0,0.08)] backdrop-blur" />
+          <div className="h-[280px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="h-[72px] rounded-[16px] bg-white/80 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.08)] animate-pulse" />
+            <div className="h-[72px] rounded-[16px] bg-white/80 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.08)] animate-pulse" />
+            <div className="h-[72px] rounded-[16px] bg-white/80 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.08)] animate-pulse" />
+            <div className="h-[72px] rounded-[16px] bg-white/80 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.08)] animate-pulse" />
+          </div>
+          <div className="h-14 rounded-[16px] bg-white/80 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.08)] animate-pulse" />
         </div>
       </main>
     )
@@ -322,12 +136,12 @@ export default function ChildDetailPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="max-w-xl mx-auto p-6 md:p-10 space-y-4">
-          <Card>
-            <p className="text-red-600">❌ {error}</p>
-          </Card>
-          <Link href="/dashboard" className="text-sm text-slate-600 underline">
+      <main className="min-h-screen bg-gradient-to-b from-[#fff9f0] via-[#f5f0ff] to-[#f0f9ff]">
+        <div className="mx-auto w-full max-w-5xl px-6 pb-6 pt-24">
+          <div className="rounded-[16px] border border-red-200 bg-white/90 px-4 py-3 text-sm text-red-700 shadow-[0px_4px_10px_-6px_rgba(0,0,0,0.2)]">
+            ❌ {error}
+          </div>
+          <Link href="/dashboard" className="mt-3 inline-block text-sm text-[#7b6b8f] underline">
             Zurück zum Dashboard
           </Link>
         </div>
@@ -335,166 +149,269 @@ export default function ChildDetailPage() {
     )
   }
 
-  if (!child) return null
+  if (!child || !balance) return null
 
-  const investThreshold = settings?.invest_threshold_cents ?? 5000
-  const investReady = (balance?.invest_cents ?? 0) >= investThreshold
-  const investProgress = investThreshold > 0 ? Math.min((balance?.invest_cents ?? 0) / investThreshold, 1) : 0
-  const interestDays = daysSince(balance?.last_interest_on ?? child.created_at)
+  const avatarEmoji = child.avatar_emoji ?? '🧒'
+  const nameLabel = child.name?.trim()
+  const headerTitle = nameLabel ? `${nameLabel}s Geld` : 'Dein Geld'
+  const spend = balance.spend_cents ?? 0
+  const save = balance.save_cents ?? 0
+  const invest = balance.invest_cents ?? 0
+  const donate = balance.donate_cents ?? 0
+  const donateActive = (child.age ?? 0) >= 7 || Boolean(child.donate_enabled) || donate > 0
+  const total = spend + save + invest + (donateActive ? donate : 0)
+
+  const donutSegments: DonutSegment[] = [
+    ...(donateActive ? [{ key: 'donate', value: donate, color: '#d8a6d9' }] : []),
+    { key: 'spend', value: spend, color: '#ff9a7a' },
+    { key: 'save', value: save, color: '#7fc7e6' },
+    { key: 'invest', value: invest, color: '#8bd98b' },
+  ].filter((segment) => segment.value > 0)
+
+  const potRows = [
+    {
+      key: 'spend',
+      label: 'Ausgeben',
+      subtitle: 'Geld für jetzt',
+      emoji: '💰',
+      value: spend,
+      gradient: 'from-[#ffe5dd] to-[#ffd4c8]',
+      text: 'text-[#a0472a]',
+      subtext: 'text-[#c65d3b]',
+    },
+    {
+      key: 'save',
+      label: 'Sparen',
+      subtitle: 'Für besondere Wünsche',
+      emoji: '🏦',
+      value: save,
+      gradient: 'from-[#d4e9f7] to-[#c4e0f0]',
+      text: 'text-[#2a5580]',
+      subtext: 'text-[#3b6d9b]',
+    },
+    {
+      key: 'invest',
+      label: 'Investieren',
+      subtitle: 'Geld das wächst',
+      emoji: '🌱',
+      value: invest,
+      gradient: 'from-[#d8f3d8] to-[#c8ebc8]',
+      text: 'text-[#3a7a3a]',
+      subtext: 'text-[#4a8f4a]',
+    },
+    {
+      key: 'donate',
+      label: 'Spenden',
+      subtitle: 'Für eine gute Sache',
+      emoji: '💝',
+      value: donate,
+      gradient: 'from-[#ffe5f0] to-[#f5e5ff]',
+      text: 'text-[#8b5a9b]',
+      subtext: 'text-[#9b6bab]',
+      show: donateActive,
+    },
+  ]
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="max-w-xl mx-auto p-6 md:p-10 space-y-6">
-        <header className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <ChildAvatar
-                name={child.name ?? 'Kind'}
-                avatar_mode={child.avatar_mode}
-                avatar_emoji={child.avatar_emoji ?? '🧒'}
-                avatar_image_url={child.avatar_image_url ?? undefined}
-                accent_color={child.accent_color ?? 'slate'}
-                size="lg"
-              />
-              <div className="space-y-1">
-                <h1 className="text-3xl font-bold tracking-tight">{child.name ?? 'Kind'}</h1>
-                <p className="text-sm text-slate-600">
-                  Alter {child.age ?? '—'} • Wöchentlich {formatCHF((child.weekly_amount ?? 0) * 100)}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2 text-sm text-slate-600">
-              <Link href="/dashboard" className="underline">
-                Dashboard
-              </Link>
-              <Link href={`/children/${child.id}/edit`} className="underline">
-                Bearbeiten
-              </Link>
-            </div>
+    <main className="min-h-screen bg-gradient-to-b from-[#fff9f0] via-[#f5f0ff] to-[#f0f9ff] text-[#0a0a0a]">
+      <header className="sticky top-0 z-10 bg-white/80 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] backdrop-blur">
+        <div className="relative mx-auto flex min-h-[72px] w-full max-w-5xl items-center justify-center px-6">
+          <Link
+            href="/dashboard"
+            className="absolute left-6 flex size-10 items-center justify-center rounded-full bg-[#f0e8f8] text-[#7b6b8f]"
+            aria-label="Zurück"
+          >
+            <ArrowLeftIcon className="size-5" />
+          </Link>
+          <div className="flex items-center gap-[7.991px] text-[#5a4a6a]">
+            <span className="text-[24px] leading-[32px] tracking-[0.0703px]">{avatarEmoji}</span>
+            <span className="text-[20px] font-semibold leading-[28px] tracking-[-0.4492px]">
+              {headerTitle}
+            </span>
           </div>
-        </header>
-
-        <div className="space-y-3">
-          <PotCard pot="spend" cents={balance?.spend_cents ?? 0} subtitle="Heute & Spass" />
-
-          <PotCard
-            pot="save"
-            cents={balance?.save_cents ?? 0}
-            subtitle="Dein Sparschatz wächst"
-            rightSlot={interestDays > 0 ? <Badge tone="warning">Zinsen möglich</Badge> : null}
-          />
-
-          <PotCard
-            pot="invest"
-            cents={balance?.invest_cents ?? 0}
-            subtitle="Raketenstart bei CHF 50"
-            rightSlot={
-              <div className="flex w-32 flex-col items-end gap-2 text-right">
-                <Progress value={investProgress} className="bg-white/60" />
-                <p className="text-xs text-slate-700">
-                  {formatCHF(investThreshold)} Ziel • {Math.round(investProgress * 100)}%
-                </p>
-              </div>
-            }
-          />
+          <Link
+            href={`/children/${child.id}/edit`}
+            className="absolute right-6 flex size-10 items-center justify-center rounded-full bg-[#f0e8f8] text-[#7b6b8f]"
+            aria-label="Einstellungen"
+          >
+            <SettingsIcon className="size-5" />
+          </Link>
         </div>
+      </header>
 
-        {interestMessage && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-            {interestMessage}
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 pb-6 pt-6">
+        <section className="rounded-[24px] bg-white/90 px-6 pb-6 pt-10 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] md:px-16">
+          <div className="relative mx-auto size-[200px]">
+            <DonutChart segments={donutSegments} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-[3.996px] text-center">
+              <span className="text-[12px] leading-[16px] text-[#9b8bab]">Total</span>
+              <span className="text-[24px] font-bold leading-[32px] tracking-[0.0703px] text-[#5a4a6a]">
+                {formatCHF(total)}
+              </span>
+            </div>
           </div>
-        )}
+        </section>
 
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Aktionen</h2>
-            <p className="text-xs text-slate-500">Für Eltern & Kids</p>
-          </div>
-          <div className="space-y-2">
-            <Link href={`/children/${child.id}/payout`}>
-              <Button>Auszahlung hinzufügen</Button>
-            </Link>
-            <Link href={`/children/${child.id}/extra`}>
-              <Button variant="secondary">Extra Geld</Button>
-            </Link>
-            <Button onClick={handleInterest} variant="secondary" disabled={interestLoading} className="text-left">
-              {interestLoading ? 'Berechne Zinsen…' : 'Zinsen gutschreiben'}
-            </Button>
-            {investReady ? (
-              <Link href={`/children/${child.id}/transfer`}>
-                <Button variant="secondary">Invest transferieren</Button>
+        <section className="grid gap-3 md:grid-cols-2">
+          {potRows
+            .filter((row) => row.show !== false)
+            .map((row) => (
+              <Link
+                key={row.key}
+                href={`/children/${child.id}/pots/${row.key}`}
+                className={`flex min-h-[72px] items-center justify-between rounded-[16px] bg-gradient-to-b ${row.gradient} px-4 py-3 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-[30px] leading-[36px] tracking-[0.3955px]">{row.emoji}</span>
+                  <div>
+                    <p className={`text-[16px] font-bold leading-[24px] tracking-[-0.3125px] ${row.text}`}>
+                      {row.label}
+                    </p>
+                    <p className={`text-[12px] font-medium leading-[16px] ${row.subtext}`}>
+                      {row.subtitle}
+                    </p>
+                  </div>
+                </div>
+                <div className={`flex items-center gap-2 ${row.text}`}>
+                  <span className="text-[20px] font-bold leading-[28px] tracking-[-0.4492px]">
+                    {formatPotValue(row.value)}
+                  </span>
+                  <span className="text-[20px] font-medium leading-[28px] tracking-[-0.4492px]">
+                    →
+                  </span>
+                </div>
               </Link>
-            ) : (
-              <div className="space-y-1">
-                <Button variant="secondary" disabled className="cursor-not-allowed opacity-70">
-                  Invest transferieren
-                </Button>
-                <p className="text-xs text-slate-600">
-                  Ab {formatCHF(investThreshold)} verfügbar. Aktuell {formatCHF(balance?.invest_cents ?? 0)}.
+            ))}
+
+          <Link
+            href={`/children/${child.id}/wishes`}
+            className="flex min-h-[72px] items-center justify-between rounded-[16px] bg-white/90 px-4 py-3 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-[30px] leading-[36px] tracking-[0.3955px]">⭐</span>
+              <div>
+                <p className="text-[16px] font-bold leading-[24px] tracking-[-0.3125px] text-[#5a4a6a]">
+                  Meine Wünsche
+                </p>
+                <p className="text-[12px] font-medium leading-[16px] text-[#9b8bab]">
+                  Spare für etwas Besonderes
                 </p>
               </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">Letzte Bewegungen</h2>
-            <span className="text-xs text-slate-500">Max. 5</span>
-          </div>
-          {transactions.length === 0 ? (
-            <p className="text-sm text-slate-500">Noch keine Transaktionen.</p>
-          ) : (
-            <div className="space-y-2">
-              {transactions.map((tx) => {
-                const meta = getPotMeta(tx.pot as Pot)
-                return (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg" aria-hidden>
-                        {meta.emoji}
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {formatTxType(tx.type)} • {meta.label}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatDate(tx.occurred_on)} {tx.meta?.reason ? `• ${tx.meta.reason}` : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="font-mono text-sm text-slate-900">{formatCHF(tx.amount_cents)}</p>
-                  </div>
-                )
-              })}
             </div>
-          )}
-        </Card>
+            <span className="text-[20px] font-medium leading-[28px] tracking-[-0.4492px] text-[#7b6b8f]">
+              →
+            </span>
+          </Link>
 
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">Ich spare für…</h2>
-            <Link href={`/children/${child.id}/wishes`} className="text-sm text-slate-600 underline">
-              Wünsche
-            </Link>
-          </div>
-          {wishes.length === 0 ? (
-            <p className="text-sm text-slate-600">Noch keine Wünsche.</p>
-          ) : (
-            <div className="space-y-2">
-              {wishes.map((wish) => (
-                <div key={wish.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                  <span className="text-sm text-slate-900">{wish.title}</span>
-                  <span className="text-xs text-slate-600">{formatCHF(wish.target_cents)}</span>
-                </div>
-              ))}
+          <Link
+            href={`/children/${child.id}/activities`}
+            className="flex min-h-[72px] items-center justify-between rounded-[16px] bg-white/90 px-4 py-3 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-[30px] leading-[36px] tracking-[0.3955px]">📋</span>
+              <div>
+                <p className="text-[16px] font-bold leading-[24px] tracking-[-0.3125px] text-[#5a4a6a]">
+                  Aktivitäten
+                </p>
+                <p className="text-[12px] font-medium leading-[16px] text-[#9b8bab]">
+                  Was du mit deinem Geld gemacht hast
+                </p>
+              </div>
             </div>
-          )}
-        </Card>
+            <span className="text-[20px] font-medium leading-[28px] tracking-[-0.4492px] text-[#7b6b8f]">
+              →
+            </span>
+          </Link>
+
+          <Link
+            href={`/children/${child.id}/payout`}
+            className="flex min-h-[56px] items-center justify-center gap-2 rounded-[16px] bg-gradient-to-b from-[#a8d5e2] to-[#b8e6b8] text-[16px] font-semibold leading-[24px] tracking-[-0.3125px] text-[#2a5a5a] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] md:col-span-2"
+          >
+            <PlusIcon className="size-5" />
+            Geld hinzufügen
+          </Link>
+        </section>
       </div>
     </main>
+  )
+}
+
+function formatPotValue(cents: number) {
+  const safe = typeof cents === 'number' && !Number.isNaN(cents) ? cents : 0
+  return (safe / 100).toFixed(2)
+}
+
+function DonutChart({ segments }: { segments: DonutSegment[] }) {
+  const size = 200
+  const strokeWidth = 20
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const gap = 6
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0)
+  let offset = 0
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="#f0e8f8"
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        {(total > 0 ? segments : []).map((segment) => {
+          const length = (segment.value / total) * (circumference - gap * segments.length)
+          const dashArray = `${length} ${circumference - length}`
+          const dashOffset = -offset
+          offset += length + gap
+          return (
+            <circle
+              key={segment.key}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={segment.color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={dashArray}
+              strokeDashoffset={dashOffset}
+            />
+          )
+        })}
+      </g>
+    </svg>
+  )
+}
+
+function ArrowLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M8.3 3.2h3.4l.4 1.8 1.6.8 1.7-1 1.7 1.7-1 1.7.8 1.6 1.8.4v3.4l-1.8.4-.8 1.6 1 1.7-1.7 1.7-1.7-1-1.6.8-.4 1.8H8.3l-.4-1.8-1.6-.8-1.7 1-1.7-1.7 1-1.7-.8-1.6-1.8-.4v-3.4l1.8-.4.8-1.6-1-1.7L4.6 4.8l1.7 1 1.6-.8.4-1.8z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="10" r="2.3" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 4.5v11M4.5 10h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   )
 }

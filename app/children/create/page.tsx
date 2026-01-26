@@ -3,11 +3,8 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { ChildAvatar } from '@/components/kids/ChildAvatar'
-import { getAccentClasses } from '@/components/kids/avatar'
+import { createBrowserSupabaseClient } from '@/supabase/client'
+import { ArrowLeft } from 'lucide-react'
 
 export default function CreateChild() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
@@ -16,10 +13,10 @@ export default function CreateChild() {
   const [name, setName] = useState('')
   const [age, setAge] = useState<number | ''>(4)
   const [weeklyAmount, setWeeklyAmount] = useState<number | ''>(4)
-  const [avatarMode, setAvatarMode] = useState<'emoji' | 'image'>('emoji')
-  const [avatarEmoji, setAvatarEmoji] = useState('🧒')
-  const [accentColor, setAccentColor] = useState('slate')
-  const [imageFile, setImageFile] = useState<File | null>(null)
+  const avatarMode: 'emoji' | 'image' = 'emoji'
+  const [avatarEmoji, setAvatarEmoji] = useState('🌸')
+  const accentColor = 'slate'
+  const imageFile: File | null = null
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -79,6 +76,7 @@ export default function CreateChild() {
         avatar_mode: avatarMode,
         avatar_emoji: avatarEmoji || '🧒',
         accent_color: accentColor,
+        donate_enabled: false,
       })
       .select('id')
       .single()
@@ -157,174 +155,155 @@ export default function CreateChild() {
     router.replace('/dashboard')
   }
 
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="max-w-xl mx-auto p-6 md:p-10 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Kind hinzufügen</h1>
-          <a href="/dashboard" className="text-sm text-slate-600 underline">
-            Zurück
-          </a>
-        </div>
+  const emojiOptions = [
+    '🌸',
+    '🚀',
+    '🌟',
+    '🦄',
+    '🐻',
+    '🦊',
+    '🐼',
+    '🦁',
+    '🐨',
+    '🐸',
+    '🦋',
+    '🌈',
+    '⚽️',
+    '🎨',
+    '🎵',
+    '📚',
+  ]
 
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+      <header className="sticky top-0 z-10 border-b border-white/60 bg-white/80 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] backdrop-blur">
+        <div className="relative mx-auto flex min-h-[72px] w-full max-w-2xl items-center justify-between px-6">
+          <button
+            type="button"
+            onClick={() => router.replace('/dashboard')}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f0e8f8] text-[#7b6b8f]"
+            aria-label="Zurück"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-2 text-[#5a4a6a]">
+            <span className="text-2xl">👶</span>
+            <span className="text-xl font-semibold">Kind hinzufügen</span>
+          </div>
+          <div className="h-10 w-10" aria-hidden="true" />
+        </div>
+      </header>
+
+      <div className="mx-auto w-full max-w-2xl px-6 pb-10 pt-8">
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 p-3">
+          <div className="mb-4 rounded-2xl border border-red-200 bg-white/90 p-3 text-sm text-red-700 shadow-sm">
             ❌ {error}
           </div>
         )}
 
-        <Card>
-          <form onSubmit={handleCreateChild} className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-semibold">
+        <form
+          onSubmit={handleCreateChild}
+          className="rounded-[28px] bg-white/90 p-8 shadow-[0px_18px_40px_-20px_rgba(15,23,42,0.25)] backdrop-blur"
+        >
+          <div className="text-center">
+            <div className="text-6xl">{avatarEmoji}</div>
+            <h1 className="mt-4 text-2xl font-semibold text-[#5A4A6A]">
+              Neues Kinderprofil
+            </h1>
+            <p className="mt-2 text-sm text-[#9B8BAB]">
+              Erstelle ein Profil für dein Kind
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-6">
+            <div className="space-y-2">
+              <label htmlFor="name" className="text-sm font-semibold text-[#5A4A6A]">
                 Name
               </label>
               <input
                 id="name"
-                className="w-full rounded-xl border border-slate-200 p-3"
+                className="w-full rounded-2xl bg-gradient-to-r from-[#f8f4fc] to-[#f4f8fc] px-5 py-4 text-base text-[#5A4A6A] placeholder:text-[#D0C0E0] focus:outline-none focus:ring-4 focus:ring-[#B8D5E8]"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="age" className="block text-sm font-semibold">
-                Alter
-              </label>
-              <input
-                id="age"
-                type="number"
-                className="w-full rounded-xl border border-slate-200 p-3"
-                value={age}
-                onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
-                min={1}
-                max={18}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="weekly" className="block text-sm font-semibold">
-                Wöchentliches Taschengeld (CHF)
-              </label>
-              <input
-                id="weekly"
-                type="number"
-                className="w-full rounded-xl border border-slate-200 p-3"
-                value={weeklyAmount}
-                onChange={(e) =>
-                  setWeeklyAmount(e.target.value === '' ? '' : Number(e.target.value))
-                }
-                min={0}
-                step={1}
+                placeholder="z.B. Emma"
                 required
               />
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">Avatar Vorschau</p>
-                  <p className="text-xs text-slate-500">Emoji oder Bild + Akzentfarbe</p>
-                </div>
-                <ChildAvatar
-                  name={name}
-                  avatar_mode={avatarMode}
-                  avatar_emoji={avatarEmoji}
-                  avatar_image_url={imageFile ? URL.createObjectURL(imageFile) : undefined}
-                  accent_color={accentColor}
-                  size="md"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={avatarMode === 'emoji' ? 'primary' : 'secondary'}
-                  fullWidth={false}
-                  onClick={() => setAvatarMode('emoji')}
-                >
-                  Emoji nutzen
-                </Button>
-                <Button
-                  type="button"
-                  variant={avatarMode === 'image' ? 'primary' : 'secondary'}
-                  fullWidth={false}
-                  onClick={() => setAvatarMode('image')}
-                >
-                  Bild hochladen
-                </Button>
-              </div>
-
-              {avatarMode === 'emoji' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold">Emoji</label>
-                  <input
-                    className="w-full rounded-xl border border-slate-200 p-3"
-                    value={avatarEmoji}
-                    onChange={(e) => setAvatarEmoji(e.target.value)}
-                    maxLength={4}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {['🦊', '🐻', '🐼', '🦁', '🐸', '🐰', '🐯', '🦄', '⭐️', '🧒', '👧', '👦'].map((emo) => (
-                      <button
-                        key={emo}
-                        type="button"
-                        className={`rounded-xl border px-3 py-2 text-lg ${
-                          avatarEmoji === emo ? 'border-slate-900 bg-slate-100' : 'border-slate-200'
-                        }`}
-                        onClick={() => setAvatarEmoji(emo)}
-                      >
-                        {emo}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {avatarMode === 'image' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold">Bild auswählen</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                    className="w-full rounded-xl border border-slate-200 p-3"
-                  />
-                  <p className="text-xs text-slate-500">PNG/JPG, wird in den öffentlichen Bucket „avatars“ geladen.</p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold">Akzentfarbe</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {['slate', 'amber', 'emerald', 'sky', 'violet', 'rose', 'orange', 'teal'].map((token) => {
-                    const accent = getAccentClasses(token)
-                    const active = accentColor === token
-                    return (
-                      <button
-                        key={token}
-                        type="button"
-                        onClick={() => setAccentColor(token)}
-                        className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm capitalize ${
-                          active ? 'border-slate-900 bg-slate-100' : 'border-slate-200'
-                        }`}
-                      >
-                        <span className={`h-4 w-4 rounded-full ${accent.dot}`} />
-                        {token}
-                      </button>
-                    )
-                  })}
-                </div>
+              <span className="text-sm font-semibold text-[#5A4A6A]">
+                Symbol wählen
+              </span>
+              <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+                {emojiOptions.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setAvatarEmoji(emoji)}
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl transition ${
+                      avatarEmoji === emoji
+                        ? 'bg-gradient-to-br from-[#b8e6b8] to-[#a8d5e2] shadow-md'
+                        : 'bg-[#f7f2fb] text-[#7b6b8f]'
+                    }`}
+                    aria-pressed={avatarEmoji === emoji}
+                  >
+                    {emoji}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Erstelle…' : 'Kind hinzufügen'}
-            </Button>
-          </form>
-        </Card>
+            <div className="space-y-2">
+              <label htmlFor="age" className="text-sm font-semibold text-[#5A4A6A]">
+                Alter (Jahre)
+              </label>
+              <input
+                id="age"
+                type="number"
+                className="w-full rounded-2xl bg-gradient-to-r from-[#f8f4fc] to-[#f4f8fc] px-5 py-4 text-base text-[#5A4A6A] placeholder:text-[#D0C0E0] focus:outline-none focus:ring-4 focus:ring-[#B8D5E8]"
+                value={age}
+                onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
+                min={1}
+                max={18}
+                placeholder="z.B. 7"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="weekly" className="text-sm font-semibold text-[#5A4A6A]">
+                Wöchentliches Taschengeld
+              </label>
+              <div className="relative">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-semibold text-[#7B6B8F]">
+                  CHF
+                </span>
+                <input
+                  id="weekly"
+                  type="number"
+                  className="w-full rounded-2xl bg-gradient-to-r from-[#f8f4fc] to-[#f4f8fc] py-4 pl-16 pr-5 text-base text-[#5A4A6A] placeholder:text-[#D0C0E0] focus:outline-none focus:ring-4 focus:ring-[#B8D5E8]"
+                  value={weeklyAmount}
+                  onChange={(e) =>
+                    setWeeklyAmount(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  min={0}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="rounded-2xl bg-gradient-to-r from-[#f5fff5] to-[#f0f8ff] px-4 py-3 text-xs text-[#5A4A6A]">
+                💡 Empfehlung: Pro Woche so viele Franken wie das Kind alt ist
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full rounded-2xl bg-gradient-to-r from-[#A8D5E2] to-[#B8E6B8] px-5 py-5 text-lg font-semibold text-[#2A5A5A] shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? 'Wird gespeichert…' : 'Kind hinzufügen'}
+            </button>
+          </div>
+        </form>
       </div>
     </main>
   )

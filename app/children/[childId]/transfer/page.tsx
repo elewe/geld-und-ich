@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatCHF } from '@/lib/ui'
@@ -168,15 +168,18 @@ export default function TransferPage() {
 
   if (loading) {
     return (
-      <main className="p-8">
-        <p className="text-slate-500">Lade…</p>
+      <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+        <div className="mx-auto w-full max-w-2xl px-6 pb-6 pt-24 space-y-6">
+          <div className="h-16 rounded-[24px] bg-white/80 shadow-[0px_1px_3px_rgba(0,0,0,0.08)] backdrop-blur" />
+          <div className="h-[420px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
+        </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="max-w-xl mx-auto p-6 md:p-10 space-y-4">
+    <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+      <div className="mx-auto w-full max-w-2xl p-6 md:p-10 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Invest transferieren</h1>
           <Link href={`/children/${childId}`} className="text-sm text-slate-600 underline">

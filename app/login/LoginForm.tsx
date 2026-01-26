@@ -3,7 +3,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/client'
+import { getBaseUrl } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
@@ -54,7 +55,7 @@ export function LoginForm() {
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${getBaseUrl()}/auth/callback`,
       },
     })
 
@@ -69,18 +70,18 @@ export function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 flex items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-md space-y-4">
+    <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5] flex items-center justify-center px-6 py-10">
+      <Card className="w-full max-w-md space-y-4 bg-white/90 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] backdrop-blur">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Anmelden</h1>
-          <p className="text-slate-600">Du bekommst einen Magic-Link per E-Mail.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[#5a4a6a]">Anmelden</h1>
+          <p className="text-[#7b6b8f]">Du bekommst einen Magic-Link per E-Mail.</p>
         </div>
 
         <form onSubmit={signIn} className="space-y-3">
           <label className="block space-y-2">
-            <span className="text-sm font-semibold text-slate-800">E-Mail</span>
+            <span className="text-sm font-semibold text-[#5a4a6a]">E-Mail</span>
             <input
-              className="w-full rounded-xl border border-slate-200 p-3 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-xl border border-white/80 bg-gradient-to-r from-[#f8f4fc] to-[#f4f8fc] p-3 text-[#5a4a6a] focus:outline-none focus:ring-4 focus:ring-[#b8d5e8]"
               type="email"
               placeholder="deine@email.ch"
               value={email}
@@ -91,7 +92,7 @@ export function LoginForm() {
           <Button type="submit">{sent ? 'Link erneut senden' : 'Link senden'}</Button>
         </form>
 
-        <div className="text-sm text-slate-500">
+        <div className="text-sm text-[#9b8bab]">
           Status: <span className="font-mono">{status}</span>
         </div>
 

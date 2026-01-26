@@ -9,3 +9,6 @@ Dieser Ordner enthält alle wiederverwendbaren React-Komponenten für Kids Money
 - `features/` - Feature-spezifische Komponenten
 
 
+
+
+

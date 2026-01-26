@@ -60,11 +60,13 @@ export function MonthlyBars({ data, isLoading }: Props) {
   )
 }
 
-function BarsTooltip({ active, payload, label }: any) {
+type TooltipPayload = { dataKey: string; value: number }
+
+function BarsTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) {
   if (!active || !payload?.length) return null
-  const spend = payload.find((p: any) => p.dataKey === 'spend')?.value ?? 0
-  const save = payload.find((p: any) => p.dataKey === 'save')?.value ?? 0
-  const invest = payload.find((p: any) => p.dataKey === 'invest')?.value ?? 0
+  const spend = payload.find((p) => p.dataKey === 'spend')?.value ?? 0
+  const save = payload.find((p) => p.dataKey === 'save')?.value ?? 0
+  const invest = payload.find((p) => p.dataKey === 'invest')?.value ?? 0
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">

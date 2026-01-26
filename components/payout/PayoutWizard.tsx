@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
+import { createBrowserSupabaseClient } from '@/supabase/client'
 import { Drawer } from '@/components/ui/Drawer'
 import { StepDots } from '@/components/ui/StepDots'
 import { Button } from '@/components/ui/Button'
@@ -44,9 +44,13 @@ export function PayoutWizard({ open, onClose, child, onSuccess }: Props) {
       const defaultTotal = Math.max(0, Math.round((child.weekly_amount ?? 0) * 100))
       const half = Math.floor(defaultTotal / 2)
       const remainder = defaultTotal - half
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTotalCents(defaultTotal)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSaveCents(half)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInvestCents(remainder)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSpendCents(0)
       setDate(new Date().toISOString().slice(0, 10))
       setStep(1)
@@ -182,7 +186,15 @@ export function PayoutWizard({ open, onClose, child, onSuccess }: Props) {
             meta: { source: 'weekly_allowance' },
           }
         : null,
-    ].filter(Boolean) as any[]
+    ].filter(Boolean) as {
+      child_id: string
+      user_id: string
+      type: string
+      pot: 'spend' | 'save' | 'invest'
+      amount_cents: number
+      occurred_on: string
+      meta: { source: string }
+    }[]
 
     const txPayload = [baseTx, ...allocations]
     const { error: txError } = await supabase.from('transactions').insert(txPayload)

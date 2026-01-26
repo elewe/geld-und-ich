@@ -5,7 +5,7 @@ Kurzanleitung, damit Automationen sicher in diesem Next.js + Supabase Projekt ar
 ## Stack & Laufzeit
 - Next.js App Router, Client Components für alle Supabase-Zugriffe (`'use client'` nicht vergessen).
 - Styling: TailwindCSS. Mobile-first Layout, Container meist `max-w-xl mx-auto p-6 md:p-10`.
-- Supabase Client: `createClient()` aus `@/supabase/browser`. Kein server-side Supabase, keine Server Actions.
+- Supabase Client: `createClient()` aus `@/supabase/client`. Kein server-side Supabase, keine Server Actions.
 - Auth: `supabase.auth.getUser()`. Wenn kein User → `router.replace('/login')`.
 - Routing-Hooks: `useParams()` (Param kann optional sein), `useRouter()` für Redirects.
 - CLI: bevorzugt `rg` für Suchen; Edits mit `apply_patch`. Keine destruktiven Git-Befehle.

@@ -1,16 +1,15 @@
 // INDEX: app/loading.tsx
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
-      <div className="mx-auto w-full max-w-xl space-y-4 px-4 py-6 md:max-w-3xl lg:max-w-4xl">
-        <div className="h-14 rounded-full border border-slate-200 bg-white/70 shadow-sm backdrop-blur" />
-        <div className="space-y-3">
-          <div className="h-16 rounded-2xl bg-slate-100 animate-pulse" />
-          <div className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
-          <div className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
+    <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+      <div className="mx-auto w-full max-w-[439.877px] space-y-[15.991px] px-[23.992px] pb-[23.992px] pt-[95.967px]">
+        <div className="h-[71.975px] rounded-[24px] border border-white/60 bg-white/80 shadow-[0px_1px_3px_rgba(0,0,0,0.08)] backdrop-blur" />
+        <div className="space-y-[15.991px]">
+          <div className="h-[120px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
+          <div className="h-[120px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
+          <div className="h-[120px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
         </div>
-        <div className="h-80 rounded-2xl bg-slate-100 animate-pulse" />
-        <div className="h-80 rounded-2xl bg-slate-100 animate-pulse" />
+        <div className="h-[220px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
       </div>
     </main>
   )

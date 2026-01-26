@@ -2,13 +2,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { createBrowserSupabaseClient } from '@/supabase/browser'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { ChildAvatar } from '@/components/kids/ChildAvatar'
-import { getAccentClasses } from '@/components/kids/avatar'
+import { createBrowserSupabaseClient } from '@/supabase/client'
 
 type Child = {
   id: string
@@ -18,9 +13,27 @@ type Child = {
   user_id: string
   avatar_mode: 'emoji' | 'image'
   avatar_emoji: string | null
-  avatar_image_url: string | null
-  accent_color: string | null
+  donate_enabled?: boolean | null
 }
+
+const emojiOptions = [
+  '🌸',
+  '🚀',
+  '🌟',
+  '🦄',
+  '🐻',
+  '🦊',
+  '🐼',
+  '🦁',
+  '🐨',
+  '🐸',
+  '🦋',
+  '🌈',
+  '⚽',
+  '🎨',
+  '🎵',
+  '📚',
+]
 
 export default function EditChildPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
@@ -31,14 +44,10 @@ export default function EditChildPage() {
   const [name, setName] = useState('')
   const [age, setAge] = useState<number | ''>('')
   const [weeklyAmount, setWeeklyAmount] = useState<number | ''>('')
-  const [avatarMode, setAvatarMode] = useState<'emoji' | 'image'>('emoji')
   const [avatarEmoji, setAvatarEmoji] = useState('🧒')
-  const [avatarImageUrl, setAvatarImageUrl] = useState<string | null>(null)
-  const [accentColor, setAccentColor] = useState('slate')
-  const [newImageFile, setNewImageFile] = useState<File | null>(null)
+  const [donateEnabled, setDonateEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -72,7 +81,7 @@ export default function EditChildPage() {
 
       const { data, error: childError } = await supabase
         .from('children')
-        .select('id, name, age, weekly_amount, user_id, avatar_mode, avatar_emoji, avatar_image_url, accent_color')
+        .select('id, name, age, weekly_amount, user_id, avatar_mode, avatar_emoji, donate_enabled')
         .eq('id', childId)
         .single()
 
@@ -95,10 +104,8 @@ export default function EditChildPage() {
       setName(child.name ?? '')
       setAge(child.age ?? '')
       setWeeklyAmount(child.weekly_amount ?? '')
-      setAvatarMode(child.avatar_mode ?? 'emoji')
       setAvatarEmoji(child.avatar_emoji ?? '🧒')
-      setAvatarImageUrl(child.avatar_image_url ?? null)
-      setAccentColor(child.accent_color ?? 'slate')
+      setDonateEnabled(Boolean(child.donate_enabled))
       setLoading(false)
     }
 
@@ -153,29 +160,7 @@ export default function EditChildPage() {
       return
     }
 
-    if (avatarMode === 'image' && !avatarImageUrl && !newImageFile) {
-      setError('Bitte ein Bild wählen oder Emoji nutzen.')
-      setSaving(false)
-      return
-    }
-
-    let nextImageUrl = avatarImageUrl
-    if (avatarMode === 'image' && newImageFile) {
-      const fileExt = newImageFile.name.split('.').pop() || 'jpg'
-      const filePath = `${user.id}/${childId}-${Date.now()}.${fileExt}`
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, newImageFile, { upsert: true })
-
-      if (uploadError) {
-        setError(`Upload fehlgeschlagen: ${uploadError.message}`)
-        setSaving(false)
-        return
-      }
-
-      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath)
-      nextImageUrl = publicUrlData.publicUrl
-    }
+    const enableDonate = donateEnabled || parsedAge >= 7
 
     const { error: updateError } = await supabase
       .from('children')
@@ -183,10 +168,9 @@ export default function EditChildPage() {
         name: name.trim(),
         age: parsedAge,
         weekly_amount: parsedWeekly,
-        avatar_mode: avatarMode,
+        avatar_mode: 'emoji',
         avatar_emoji: avatarEmoji || '🧒',
-        accent_color: accentColor,
-        avatar_image_url: avatarMode === 'image' ? nextImageUrl : null,
+        donate_enabled: enableDonate,
       })
       .eq('id', childId)
       .eq('user_id', user.id)
@@ -198,239 +182,233 @@ export default function EditChildPage() {
     }
 
     setSaving(false)
-    router.replace('/dashboard')
+    router.replace(`/children/${childId}`)
   }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="max-w-xl mx-auto p-6 md:p-10">
-          <p className="text-slate-500">Lade Kind…</p>
+      <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5]">
+        <div className="mx-auto w-full max-w-2xl px-6 pb-6 pt-24 space-y-6">
+          <div className="h-16 rounded-[24px] bg-white/80 shadow-[0px_1px_3px_rgba(0,0,0,0.08)] backdrop-blur" />
+          <div className="h-[620px] rounded-[24px] bg-white/80 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.08)] animate-pulse" />
         </div>
       </main>
     )
   }
 
-  async function handleDelete() {
-    if (!childId) return
-    const confirmed = window.confirm('Kind wirklich entfernen? Alle Daten werden gelöscht.')
-    if (!confirmed) return
-
-    setError(null)
-    setDeleting(true)
-
-    const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError) {
-      setError(userError.message)
-      setDeleting(false)
-      return
-    }
-
-    const user = userData.user
-    if (!user) {
-      router.replace('/login')
-      setDeleting(false)
-      return
-    }
-
-    const { error: deleteError } = await supabase
-      .from('children')
-      .delete()
-      .eq('id', childId)
-      .eq('user_id', user.id)
-
-    if (deleteError) {
-      setError(deleteError.message)
-      setDeleting(false)
-      return
-    }
-
-    setDeleting(false)
-    router.replace('/dashboard')
-  }
+  const recommendedAge = typeof age === 'number' && !Number.isNaN(age) ? age : 0
+  const recommendedWeekly = `CHF ${recommendedAge.toFixed(2)}`
+  const isAgeEligible = typeof age === 'number' && age >= 7
+  const donateActive = donateEnabled || isAgeEligible
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="max-w-xl mx-auto p-6 md:p-10 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Kind bearbeiten</h1>
-          <Link href="/dashboard" className="text-sm text-slate-600 underline">
-            Zurück
-          </Link>
-        </div>
-
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 p-3">
-            ❌ {error}
+    <main className="min-h-screen bg-gradient-to-b from-[#fff5f0] via-[#f0f8ff] to-[#f5fff5] text-[#0a0a0a]">
+      <header className="sticky top-0 z-10 bg-white/80 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] backdrop-blur">
+        <div className="relative mx-auto flex min-h-[72px] w-full max-w-2xl items-center justify-center px-6">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="absolute left-6 flex size-10 items-center justify-center rounded-full bg-[#f0e8f8] text-[#7b6b8f]"
+            aria-label="Zurück"
+          >
+            <ArrowLeftIcon className="size-5" />
+          </button>
+          <div className="flex items-center gap-[7.991px] text-[#5a4a6a]">
+            <span className="text-[24px] leading-[32px] tracking-[0.0703px]">{avatarEmoji}</span>
+            <span className="text-[20px] font-semibold leading-[28px] tracking-[-0.4492px]">
+              Einstellungen
+            </span>
           </div>
-        )}
+        </div>
+      </header>
 
-        <Card>
-          <form onSubmit={handleSave} className="space-y-4">
+      <div className="mx-auto w-full max-w-2xl px-6 pb-6 pt-6">
+        <form
+          onSubmit={handleSave}
+          className="rounded-[24px] bg-white/90 px-[31.99px] pb-[31.99px] pt-[31.99px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        >
+          <div className="flex flex-col items-center gap-[15.991px] text-center">
+            <div className="text-[60px] leading-[60px] tracking-[0.2637px]">{avatarEmoji}</div>
             <div>
-              <label htmlFor="name" className="block text-sm font-semibold">
+              <p className="text-[24px] font-semibold leading-[32px] tracking-[0.0703px] text-[#5a4a6a]">
+                Profil bearbeiten
+              </p>
+              <p className="text-[16px] leading-[24px] tracking-[-0.3125px] text-[#9b8bab]">
+                Passe die Informationen an
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="mt-[15.991px] rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              ❌ {error}
+            </div>
+          )}
+
+          <div className="mt-[31.99px] space-y-[23.992px]">
+            <div className="space-y-[7.991px]">
+              <label className="text-[14px] font-semibold leading-[20px] tracking-[-0.1504px] text-[#5a4a6a]">
                 Name
               </label>
               <input
-                id="name"
-                className="w-full rounded-xl border border-slate-200 p-3"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(event) => setName(event.target.value)}
+                className="w-full rounded-[16px] bg-gradient-to-b from-[#f8f4fc] to-[#f4f8fc] px-[20px] py-[16px] text-[18px] tracking-[-0.4395px] text-[#5a4a6a] placeholder:text-[#d0c0e0]"
+                placeholder="Emma"
                 required
               />
             </div>
 
-            <div>
-              <label htmlFor="age" className="block text-sm font-semibold">
-                Alter
+            <div className="space-y-[11.996px]">
+              <p className="text-[14px] font-semibold leading-[20px] tracking-[-0.1504px] text-[#5a4a6a]">
+                Symbol wählen
+              </p>
+              <div className="grid grid-cols-8 gap-[7.991px]">
+                {emojiOptions.map((emoji) => {
+                  const isActive = avatarEmoji === emoji
+                  return (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setAvatarEmoji(emoji)}
+                      className={`flex h-[51.979px] w-[33.999px] items-center justify-center rounded-[14px] text-[30px] leading-[36px] tracking-[0.3955px] transition ${
+                        isActive
+                          ? 'bg-gradient-to-b from-[#a8d5e2] to-[#b8e6b8] shadow-[0px_4px_10px_-6px_rgba(0,0,0,0.25)]'
+                          : 'bg-[#f8f4fc]'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {emoji}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-[7.991px]">
+              <label className="text-[14px] font-semibold leading-[20px] tracking-[-0.1504px] text-[#5a4a6a]">
+                Alter (Jahre)
               </label>
               <input
-                id="age"
                 type="number"
-                className="w-full rounded-xl border border-slate-200 p-3"
-                value={age}
-                onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
                 min={1}
                 max={18}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="weekly" className="block text-sm font-semibold">
-                Wöchentliches Taschengeld (CHF)
-              </label>
-              <input
-                id="weekly"
-                type="number"
-                className="w-full rounded-xl border border-slate-200 p-3"
-                value={weeklyAmount}
-                onChange={(e) =>
-                  setWeeklyAmount(e.target.value === '' ? '' : Number(e.target.value))
+                value={age}
+                onChange={(event) =>
+                  setAge(event.target.value === '' ? '' : Number(event.target.value))
                 }
-                min={0}
-                step={1}
+                className="w-full rounded-[16px] bg-gradient-to-b from-[#f8f4fc] to-[#f4f8fc] px-[20px] py-[16px] text-[18px] tracking-[-0.4395px] text-[#5a4a6a] placeholder:text-[#d0c0e0]"
+                placeholder="7"
                 required
               />
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">Avatar Vorschau</p>
-                  <p className="text-xs text-slate-500">Emoji oder Bild + Akzentfarbe</p>
-                </div>
-                <ChildAvatar
-                  name={name}
-                  avatar_mode={avatarMode}
-                  avatar_emoji={avatarEmoji}
-                  avatar_image_url={
-                    newImageFile ? URL.createObjectURL(newImageFile) : avatarImageUrl ?? undefined
+            <div className="space-y-[7.991px]">
+              <label className="text-[14px] font-semibold leading-[20px] tracking-[-0.1504px] text-[#5a4a6a]">
+                Wöchentliches Taschengeld
+              </label>
+              <div className="relative">
+                <span className="absolute left-[20px] top-1/2 -translate-y-1/2 text-[20px] font-bold leading-[28px] tracking-[-0.4492px] text-[#7b6b8f]">
+                  CHF
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={weeklyAmount}
+                  onChange={(event) =>
+                    setWeeklyAmount(event.target.value === '' ? '' : Number(event.target.value))
                   }
-                  accent_color={accentColor}
-                  size="md"
+                  className="w-full rounded-[16px] bg-gradient-to-b from-[#f8f4fc] to-[#f4f8fc] py-[16px] pl-[64px] pr-[20px] text-[18px] tracking-[-0.4395px] text-[#5a4a6a] placeholder:text-[#d0c0e0]"
+                  placeholder="7.00"
+                  required
                 />
               </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={avatarMode === 'emoji' ? 'primary' : 'secondary'}
-                  fullWidth={false}
-                  onClick={() => setAvatarMode('emoji')}
-                >
-                  Emoji nutzen
-                </Button>
-                <Button
-                  type="button"
-                  variant={avatarMode === 'image' ? 'primary' : 'secondary'}
-                  fullWidth={false}
-                  onClick={() => setAvatarMode('image')}
-                >
-                  Bild hochladen
-                </Button>
-              </div>
-
-              {avatarMode === 'emoji' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold">Emoji</label>
-                  <input
-                    className="w-full rounded-xl border border-slate-200 p-3"
-                    value={avatarEmoji}
-                    onChange={(e) => setAvatarEmoji(e.target.value)}
-                    maxLength={4}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {['🦊', '🐻', '🐼', '🦁', '🐸', '🐰', '🐯', '🦄', '⭐️', '🧒', '👧', '👦'].map((emo) => (
-                      <button
-                        key={emo}
-                        type="button"
-                        className={`rounded-xl border px-3 py-2 text-lg ${
-                          avatarEmoji === emo ? 'border-slate-900 bg-slate-100' : 'border-slate-200'
-                        }`}
-                        onClick={() => setAvatarEmoji(emo)}
-                      >
-                        {emo}
-                      </button>
-                    ))}
+              <div className="rounded-[16px] bg-gradient-to-b from-[#fff5f0] to-[#f5fff5] px-[11.996px] pb-0 pt-[11.996px] text-[12px] leading-[16px] text-[#7b6b8f]">
+                <div className="flex items-start gap-[6px]">
+                  <span>💡</span>
+                  <div>
+                    <span className="font-medium">Empfehlung:</span> Pro Woche so viele Franken wie das Kind alt ist
+                    <span className="ml-1 font-bold text-[#5a4a6a]">({recommendedWeekly})</span>
                   </div>
                 </div>
-              )}
-
-              {avatarMode === 'image' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold">Bild auswählen</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setNewImageFile(e.target.files?.[0] ?? null)}
-                    className="w-full rounded-xl border border-slate-200 p-3"
-                  />
-                  <p className="text-xs text-slate-500">PNG/JPG, wird in den öffentlichen Bucket „avatars“ geladen.</p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold">Akzentfarbe</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {['slate', 'amber', 'emerald', 'sky', 'violet', 'rose', 'orange', 'teal'].map((token) => {
-                    const accent = getAccentClasses(token)
-                    const active = accentColor === token
-                    return (
-                      <button
-                        key={token}
-                        type="button"
-                        onClick={() => setAccentColor(token)}
-                        className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm capitalize ${
-                          active ? 'border-slate-900 bg-slate-100' : 'border-slate-200'
-                        }`}
-                      >
-                        <span className={`h-4 w-4 rounded-full ${accent.dot}`} />
-                        {token}
-                      </button>
-                    )
-                  })}
-                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Speichere…' : 'Speichern'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="text-red-600 border-red-200"
-                disabled={deleting}
-                onClick={handleDelete}
-              >
-                {deleting ? 'Lösche…' : 'Kind entfernen'}
-              </Button>
+            <div className="rounded-[16px] bg-gradient-to-b from-[#fff5f0] to-[#f5fff5] px-[19.996px] pb-0 pt-[19.996px]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-[7.991px]">
+                  <div className="flex items-center gap-[7.991px] text-[#5a4a6a]">
+                    <span className="text-[20px] leading-[28px] tracking-[-0.4492px]">💝</span>
+                    <span className="text-[16px] font-bold leading-[24px] tracking-[-0.3125px]">
+                      Spenden-Topf
+                    </span>
+                  </div>
+                  <p className="text-[14px] leading-[20px] tracking-[-0.1504px] text-[#7b6b8f]">
+                    Aktiviere einen vierten Topf für Spenden und gute Taten.
+                  </p>
+                  <div className="inline-flex items-center gap-[6px] rounded-[14px] bg-white/80 px-[7.99px] py-[8.58px] text-[12px] leading-[16px] text-[#9b8bab]">
+                    <span>💡</span>
+                    <span className="font-semibold">Empfohlen ab 7 Jahren</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={donateActive}
+                  onClick={() => {
+                    if (isAgeEligible) return
+                    setDonateEnabled((prev) => !prev)
+                  }}
+                  className={`flex h-[31.992px] w-[55.993px] items-center rounded-full p-[3.996px] transition ${
+                    donateActive
+                      ? 'bg-gradient-to-b from-[#a8d5e2] to-[#b8e6b8]'
+                      : 'bg-[#e6dff0]'
+                  }`}
+                >
+                  <span
+                    className={`h-[23.992px] w-[23.992px] rounded-full bg-white shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] transition ${
+                      donateActive ? 'translate-x-[20px]' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-          </form>
-        </Card>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-[31.99px] flex h-[67.989px] w-full items-center justify-center gap-[11.996px] rounded-[16px] bg-gradient-to-b from-[#a8d5e2] to-[#b8e6b8] text-[18px] font-semibold leading-[28px] tracking-[-0.4395px] text-[#2a5a5a] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+          >
+            <SaveIcon className="size-[19.996px]" />
+            {saving ? 'Speichere…' : 'Änderungen speichern'}
+          </button>
+        </form>
       </div>
     </main>
+  )
+}
+
+function ArrowLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SaveIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M5 4.5h7l3 3V15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path d="M7 4.5v4h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <rect x="7" y="10" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
   )
 }

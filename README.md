@@ -16,15 +16,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - Migrations live in `supabase/migrations/`. Run the latest SQL in Supabase SQL editor or via CLI (psql):
 
   ```
-  psql "$SUPABASE_DB_URL" -f supabase/migrations/202412271240_replace_balances_view.sql
+  psql "$SUPABASE_DB_URL" -f supabase/migrations/202601041120_fix_schema.sql
   ```
 
-- This migration replaces any balances view with a real table and guarantees `spend_cents/save_cents/invest_cents` columns.
+- Latest migration normalizes `transactions.child_id/pot` and keeps `balances` as a table (plus `balances_view` for aggregation).
 
 ## Development
 
 - Auth: Supabase magic link → `/auth/callback` exchanges the code.
-- Data: Dashboards read `balances` table directly; transactions use plain `pot` text.
+- Data: Dashboards read `balances` (table) with `pot` constrained to `spend|save|invest|donate`.
 
 ## Deploy
 - Ensure env vars are set on the host (e.g. Vercel).

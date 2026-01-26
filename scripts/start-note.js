@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const path = require('path')
 
@@ -12,3 +13,4 @@ const message = [
 ].join('\n')
 
 console.log(message)
+/* eslint-disable @typescript-eslint/no-require-imports */

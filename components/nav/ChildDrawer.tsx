@@ -27,7 +27,7 @@ type Props = {
 
 export function ChildDrawer({ open, onClose, childrenList, activeChildId }: Props) {
   const router = useRouter()
-  const pathname = usePathname()
+  const pathname = usePathname() ?? '/'
   const searchParams = useSearchParams()
 
   useEffect(() => {
