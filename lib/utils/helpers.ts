@@ -33,9 +33,13 @@ export function getBaseUrl(): string {
     return envUrl.replace(/\/+$/, "");
   }
 
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl && vercelUrl.trim().length > 0) {
+    return `https://${vercelUrl.replace(/\/+$/, "")}`;
+  }
+
   return "http://localhost:3000";
 }
-
 
 
 
