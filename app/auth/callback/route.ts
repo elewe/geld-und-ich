@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=missing_code', baseUrl))
   }
 
-  const { supabase, response } = await createRouteHandlerSupabaseClient(request)
+  const response = NextResponse.redirect(new URL('/', baseUrl))
+  const { supabase } = await createRouteHandlerSupabaseClient(request, response)
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
@@ -28,7 +29,5 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  return NextResponse.redirect(new URL('/', baseUrl), {
-    headers: response.headers,
-  })
+  return response
 }

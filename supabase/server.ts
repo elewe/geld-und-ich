@@ -31,11 +31,16 @@ export async function createServerSupabaseClient() {
 /**
  * Route Handler client that can safely write cookies.
  */
-export function createRouteHandlerSupabaseClient(request: NextRequest) {
+export function createRouteHandlerSupabaseClient(
+  request: NextRequest,
+  responseOverride?: NextResponse
+) {
   const { url, anonKey } = getSupabaseEnv()
-  const response = new NextResponse(null, {
-    headers: request.headers,
-  })
+  const response =
+    responseOverride ??
+    new NextResponse(null, {
+      headers: request.headers,
+    })
 
   const supabase = createServerClient(url, anonKey, {
     cookies: {
