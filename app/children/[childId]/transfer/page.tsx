@@ -134,11 +134,11 @@ export default function TransferPage() {
     const { error: txError } = await supabase.from('transactions').insert({
       child_id: childId,
       user_id: user.id,
-      type: 'invest_transfer',
+      type: 'spend',
       pot: 'invest',
       amount_cents: amountCents,
       occurred_on: new Date().toISOString().slice(0, 10),
-      meta: { note },
+      meta: { note, source: 'invest_transfer' },
     })
 
     if (txError) {

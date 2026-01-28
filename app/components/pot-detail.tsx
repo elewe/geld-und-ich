@@ -139,12 +139,7 @@ export function PotDetail({
               -Topf
             </span>
           </div>
-          <div
-            aria-hidden="true"
-            className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#F0E8F8] text-[#7B6B8F]"
-          >
-            ⋯
-          </div>
+          <div className="ml-auto h-10 w-10" aria-hidden="true" />
         </div>
       </div>
 

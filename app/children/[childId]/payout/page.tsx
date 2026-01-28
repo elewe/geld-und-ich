@@ -150,11 +150,11 @@ export default function PayoutPage() {
     const { error: allowanceError } = await supabase.from('transactions').insert({
       child_id: childId,
       user_id: user.id,
-      type: 'weekly_allowance',
+      type: 'payout',
       pot: 'spend',
       amount_cents: totalCents,
       occurred_on: date,
-      meta: { unallocated: true },
+      meta: { unallocated: true, source: 'weekly_allowance' },
     })
 
     if (allowanceError) {
@@ -168,7 +168,7 @@ export default function PayoutPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'spend',
             amount_cents: spendCents,
             occurred_on: date,
@@ -179,7 +179,7 @@ export default function PayoutPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'save',
             amount_cents: saveCents,
             occurred_on: date,
@@ -190,7 +190,7 @@ export default function PayoutPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'invest',
             amount_cents: investCents,
             occurred_on: date,
@@ -201,7 +201,7 @@ export default function PayoutPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'donate',
             amount_cents: donateCents,
             occurred_on: date,

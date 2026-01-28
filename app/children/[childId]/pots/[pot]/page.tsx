@@ -161,7 +161,7 @@ export default function PotDetailPage() {
       pot={pot}
       balance={balanceCents / 100}
       childName={childName}
-      onBack={() => router.back()}
+      onBack={() => router.push(`/children/${childId}`)}
       onAddExpense={
         pot === 'spend' || pot === 'save' || pot === 'donate'
           ? () => router.push(`/children/${childId}/add-expense/${pot}`)

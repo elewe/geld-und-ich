@@ -125,11 +125,11 @@ export default function ExtraPaymentPage() {
     const { error: baseError } = await supabase.from('transactions').insert({
       child_id: childId,
       user_id: user.id,
-      type: 'extra_payment',
+      type: 'payout',
       pot: 'spend',
       amount_cents: totalCents,
       occurred_on: date,
-      meta: { reason: reason || 'Extra Zahlung' },
+      meta: { reason: reason || 'Extra Zahlung', source: 'extra_payment' },
     })
 
     if (baseError) {
@@ -143,7 +143,7 @@ export default function ExtraPaymentPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'spend',
             amount_cents: spendCents,
             occurred_on: date,
@@ -154,7 +154,7 @@ export default function ExtraPaymentPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'save',
             amount_cents: saveCents,
             occurred_on: date,
@@ -165,7 +165,7 @@ export default function ExtraPaymentPage() {
         ? {
             child_id: childId,
             user_id: user.id,
-            type: 'allocation',
+            type: 'payout',
             pot: 'invest',
             amount_cents: investCents,
             occurred_on: date,
